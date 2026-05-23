@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Sorting Visualizer</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: black;
+      color: white;
+      text-align: center;
+    }
+
+    input,
+    button {
+      padding: 10px;
+      margin: 10px;
+    }
+
+    .container {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .box {
+      width: 300px;
+      background: #1e293b;
+      padding: 10px;
+      border-radius: 10px;
+    }
+
+    .bars {
+      display: flex;
+      align-items: flex-end;
+      height: 200px;
+      gap: 2px;
+    }
+
+    .bar {
+      flex: 1;
+      background: #38bdf8;
+    }
+
+    .highlight {
+      background: orange;
+    }
+
+    .sorted {
+      background: lightgreen;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>Sorting Algorithm Visualizer</h2>
+
+  <input id="input" placeholder="5,3,8,1,2">
+  <br>
+  <button onclick="start()">Start</button>
+
+  <div class="container">
+
+    <div class="box">
+      <h3>Bubble Sort</h3>
+      <div id="bubble" class="bars"></div>
+      <p>Steps: <span id="bSteps">0</span></p>
+      <p>Time: <span id="bTime">0</span></p>
+    </div>
+
+    <div class="box">
+      <h3>Selection Sort</h3>
+      <div id="selection" class="bars"></div>
+      <p>Steps: <span id="sSteps">0</span></p>
+      <p>Time: <span id="sTime">0</span></p>
+    </div>
+
+    <div class="box">
+      <h3>Merge Sort</h3>
+      <div id="merge" class="bars"></div>
+      <p>Steps: <span id="mSteps">0</span></p>
+      <p>Time: <span id="mTime">0</span></p>
+    </div>
+
+  </div>
+
+  <script>
+    function parse() {
+      return document.getElementById("input").value
+        .split(",")
+        .map(Number)
+        .filter(n => !isNaN(n));
+    }
+
+    function draw(id, arr, highlight = [], sorted = []) {
+      const box = document.getElementById(id);
+      box.innerHTML = "";
+
+      const max = Math.max(...arr);
+
+      arr.forEach((v, i) => {
+        const bar = document.createElement("div");
+        bar.className = "bar";
+
+        bar.style.height = (v / max * 200) + "px";
+
+        if (sorted.includes(i)) bar.classList.add("sorted");
+        else if (highlight.includes(i)) bar.classList.add("highlight");
+
+        box.appendChild(bar);
+      });
+    }
+
+    function sleep(ms) {
+      return new Promise(r => setTimeout(r, ms));
+    }
+
+    async function bubble(arr) {
+      let a = [...arr];
+      let steps = 0;
+
+      const start = performance.now();
+
+      for (let i = 0; i < a.length; i++) {
+        let swapped = false;
+
+        for (let j = 0; j < a.length - i - 1; j++) {
+          steps++;
+
+          if (a[j] > a[j + 1]) {
+            [a[j], a[j + 1]] = [a[j + 1], a[j]];
+            swapped = true;
+          }
+
+          draw("bubble", a, [j, j + 1]);
+          await sleep(30);
+        }
+
+        if (!swapped) break;
+      }
+
+      draw("bubble", a, [], [...Array(a.length).keys()]);
+
+      const end = performance.now();
+
+      return { steps, time: end - start };
+    }
+
+    async function selection(arr) {
+      let a = [...arr];
+      let steps = 0;
+
+      const start = performance.now();
+
+      for (let i = 0; i < a.length; i++) {
+        let min = i;
+
+        for (let j = i + 1; j < a.length; j++) {
+          steps++;
+
+          if (a[j] < a[min]) min = j;
+
+          draw("selection", a, [j, min]);
+          await sleep(20);
+        }
+
+        [a[i], a[min]] = [a[min], a[i]];
+      }
+
+      draw("selection", a, [], [...Array(a.length).keys()]);
+
+      const end = performance.now();
+
+      return { steps, time: end - start };
+    }
+
+    async function mergeSort(arr) {
+      let a = [...arr];
+      let steps = 0;
+
+      const start = performance.now();
+
+      async function sort(l, r) {
+        if (r - l <= 1) return;
+
+        const m = Math.floor((l + r) / 2);
+
+        await sort(l, m);
+        await sort(m, r);
+
+        let temp = [];
+        let i = l, j = m;
+
+        while (i < m && j < r) {
+          steps++;
+          temp.push(a[i] < a[j] ? a[i++] : a[j++]);
+        }
+
+        while (i < m) temp.push(a[i++]);
+        while (j < r) temp.push(a[j++]);
+
+        for (let k = l; k < r; k++) {
+          a[k] = temp[k - l];
+        }
+
+        draw("merge", a, Array.from({ length: r - l }, (_, x) => l + x));
+        await sleep(10);
+      }
+
+      await sort(0, a.length);
+
+      draw("merge", a, [], [...Array(a.length).keys()]);
+
+      const end = performance.now();
+
+      return { steps, time: end - start };
+    }
+
+    async function start() {
+      const arr = parse();
+
+      if (arr.length < 2) {
+        alert("Enter at least 2 numbers");
+        return;
+      }
+
+      draw("bubble", arr);
+      draw("selection", arr);
+      draw("merge", arr);
+
+      const [b, s, m] = await Promise.all([
+        bubble(arr),
+        selection(arr),
+        mergeSort(arr)
+      ]);
+
+      document.getElementById("bSteps").textContent = b.steps;
+      document.getElementById("sSteps").textContent = s.steps;
+      document.getElementById("mSteps").textContent = m.steps;
+
+      document.getElementById("bTime").textContent = b.time.toFixed(0) + " ms";
+      document.getElementById("sTime").textContent = s.time.toFixed(0) + " ms";
+      document.getElementById("mTime").textContent = m.time.toFixed(0) + " ms";
+    }
+  </script>
+
+</body>
+
+</html>
